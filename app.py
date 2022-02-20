@@ -1,6 +1,5 @@
 from parser import Parser
 from pywebio import start_server
-# from pywebio import input as webin
 import pywebio.input as webin
 import pywebio.output as webout
 
@@ -18,7 +17,6 @@ def main():
         webin.textarea("curl 命令", name='command', rows=10, required=True),
         webin.textarea("响应数据", name='response', rows=10),
     ])
-    # print(data['command'])
     parser = Parser(data['command'])
     doc = parser.to_apidoc(
         group=data['group'], name=data['name'], version=data['version'])

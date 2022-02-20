@@ -1,10 +1,11 @@
 import argparse
-import warnings
-from shlex import split
-from http.cookies import SimpleCookie
-from urllib.parse import urlparse
-from w3lib.http import basic_auth_header
 import json
+import warnings
+from http.cookies import SimpleCookie
+from shlex import split
+from urllib.parse import urlparse
+
+from w3lib.http import basic_auth_header
 
 
 class CURLParser(argparse.ArgumentParser):
@@ -146,7 +147,8 @@ class Parser:
         example = {}
         for pair in self.parsed['path'].split('/'):
             if pair.startswith(':'):
-                lines.append(f'@apiParam (route) {{String}} {pair[1:]} description')
+                lines.append(
+                    f'@apiParam (route) {{String}} {pair[1:]} description')
                 example[pair[1:]] = ""
         example_text = json.dumps(example, indent='    ')
         param_example = f'@apiParamExample (route) {{json}} Request-Example:\n{example_text}'
