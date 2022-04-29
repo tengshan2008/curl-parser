@@ -21,7 +21,19 @@ curl --location --request POST 'http://82.157.13.14:8088/api/v1/category/:catego
 }'
 """
 
+response = """
+{
+    "data": [
+        {"name": "张山", "gender": 0},
+        {"name": "李氏", "gender": 1}
+    ],
+    "message": "查询成功",
+    "status": 200,
+    "notice": ""
+}
+"""
+
 parser = Parser(curl_command)
 # print(parser.parsed)
-doc = parser.to_apidoc()
+doc = parser.to_apidoc(response=response)
 print(doc)

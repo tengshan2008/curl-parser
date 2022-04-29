@@ -13,6 +13,41 @@ class CURLParser(argparse.ArgumentParser):
         error_msg = f'There was an error parsing the curl command: {messasge}'
         raise ValueError(error_msg)
 
+class BodyParser:
+    def __init__(self, body) -> None:
+        self.parse_body = {}
+        self.parse(body)
+
+    def insert_data(self, keys, value_type):
+        keys_name = '.'.join(keys)
+        if keys_name not in self.parse_body:
+            self.parse_body[keys_name] = value_type
+
+
+    def parse(self, body, keys=None):
+        if keys is None:
+            keys = []
+        if isinstance(body, dict):
+            for k, v in body.items():
+                self.insert_data(keys + [k], v)
+                self.parse(v, keys + [k])
+        elif isinstance(body, list):
+            for i in body:
+                self.insert_data(keys, i)
+                self.parse(i, keys)
+        else:
+            self.insert_data(keys, body)
+        # elif isinstance(body, str):
+        #     self.insert_data(keys, 'str')
+        # elif isinstance(body, int):
+        #     self.insert_data(keys, 'int')
+        # elif isinstance(body, float):
+        #     self.insert_data(keys, 'float')
+        # elif isinstance(body, bool):
+        #     self.insert_data(keys, 'bool')
+        # else:
+        #     self.insert_data(keys, 'unkown')
+
 
 class Parser:
     def __init__(self, command: str) -> None:
@@ -84,11 +119,19 @@ class Parser:
     def to_api_body(self):
         # @apiBody [{type}] [field=defaultValue] [description]
         lines = []
-        for k, v in json.loads(self.parsed['body']).items():
-            if isinstance(v, str):
+        body = json.loads(self.parsed['body'].strip())
+        bp = BodyParser(body)
+        for k, v in bp.parse_body.items():
+            if isinstance(v, dict):
+                ptype = 'Object'
+            elif isinstance(v, list):
+                ptype = 'List'
+            elif isinstance(v, str):
                 ptype = 'String'
             elif isinstance(v, int):
                 ptype = 'Number'
+            elif isinstance(v, bool):
+                ptype = 'Bool'
             else:
                 ptype = 'type'
             lines.append(f'@apiBody {{{ptype}}} {k} description')
@@ -128,7 +171,10 @@ class Parser:
         # @apiParam {String} paramName description
         lines = []
         example = {}
+
         for query in self.parsed['query'].split('&'):
+            if len(query) == 0:
+                continue
             key, value = query.split('=')
             if isinstance(value, str):
                 ptype = 'String'
@@ -138,6 +184,10 @@ class Parser:
                 ptype = 'type'
             lines.append(f'@apiParam (query) {{{ptype}}} {key} description')
             example[key] = value
+
+        if len(lines) == 0 or len(example) == 0:
+            return "", ""
+
         example_text = json.dumps(example, indent='    ')
         param_example = f'@apiParamExample (query) {{json}} Request-Example:\n{example_text}'
         return "\n".join(lines), param_example
@@ -155,6 +205,9 @@ class Parser:
         return "\n".join(lines), param_example
 
     def to_api_success(self, response: str = None):
+        # response = response.strip()
+        # body = json.loads(response)
+        # bp = BodyParser(json.loads(response))
         # for k, v in json.loads(response).items():
         #     pass
         success_example = f'@apiSuccessExample {{json}} Success-Response:\n{response}'
@@ -171,7 +224,7 @@ class Parser:
         query_param, query_param_example = self.to_api_query_param()
         route_param, route_param_example = self.to_api_route_param()
         success, success_example = self.to_api_success(response)
-        body = '\n\n'.join([
+        elements = [
             self.to_api(),
             self.to_api_name(name),
             self.to_api_group(group),
@@ -186,5 +239,7 @@ class Parser:
             query_param_example,
             route_param_example,
             success_example,
-        ])
+        ]
+        elements = list(filter(lambda x: x and x.strip(), elements))
+        body = '\n\n'.join(elements)
         return f'"""\n{body}\n"""'

@@ -1,8 +1,15 @@
 from parser import Parser
-from pywebio import start_server
+
 import pywebio.input as webin
 import pywebio.output as webout
+import tornado.ioloop
+import tornado.web
+import tornado.options
+from pywebio.platform.tornado import webio_handler
 
+class MainHandler(tornado.web.RequestHandler):
+      def get(self):
+            self.write("Hello, world")
 
 def main():
     data = webin.input_group("接口信息", [
@@ -23,4 +30,14 @@ def main():
     webout.put_text(doc)
 
 
-start_server(main, port=8080, debug=True)
+# start_server(main, port=8080, debug=True)
+application = tornado.web.Application([
+      (r"/info", MainHandler),
+      (r"/", webio_handler(main)),
+])
+
+if __name__ == "__main__":
+      tornado.options.parse_command_line()
+      http_server = tornado.httpserver.HTTPServer(application)
+      http_server.listen(5050)
+      tornado.ioloop.IOLoop.current().start()
