@@ -47,8 +47,8 @@ class BodyParser:
 
 class Parser:
     def __init__(self, command: str, response: str) -> None:
-        self.command = command.replace('\\\n', '').strip()
-        self.response = response.replace('\\\n', '').strip()
+        self.command = command
+        self.response = response
         self.curl_parser = self.init_parser()
         self.parsed = self.curl_to_request_kwargs()
 
@@ -64,6 +64,7 @@ class Parser:
         return curl_parser
 
     def curl_to_request_kwargs(self, ignore_unkown_options=True):
+        self.command = self.command.replace('\\\n', '').strip()
         curl_args = split(self.command)
         if curl_args[0] != 'curl':
             raise ValueError('A curl command must start with "curl"')
@@ -149,14 +150,20 @@ class Parser:
 
     def to_api_group(self, group: str) -> str:
         # @apiGroup name
+        if group is None:
+            group = 'group'
         return f'@apiGroup {group}'
 
     def to_api_name(self, name) -> str:
         # @apiName name
+        if name is None:
+            name = 'name'
         return f'@apiName {name}'
 
     def to_api_version(self, version) -> str:
         # @apiVersion version
+        if version is None:
+            version = '0.0.1'
         return f'@apiVersion {version}'
 
     def to_api_header(self) -> Tuple[str, str]:
@@ -233,6 +240,8 @@ class Parser:
         # @apiSuccess [(group)] [{type}] field [description]
         if self.response is None:
             return None, None
+
+        self.response = self.response.replace('\\\n', '').strip()
 
         lines = []
 

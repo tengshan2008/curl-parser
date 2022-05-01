@@ -1,4 +1,5 @@
 from parser import Parser
+from typing import Any, Dict
 
 import pywebio.input as webin
 import pywebio.output as webout
@@ -11,6 +12,16 @@ from pywebio.platform.tornado import webio_handler
 class MainHandler(tornado.web.RequestHandler):
     def get(self):
         self.write("Hello, world")
+
+
+def get_value(data: Dict[str, Any], key: str):
+    if key not in data:
+        return None
+    
+    if len(data[key]) == 0:
+        return None
+
+    return data[key]
 
 
 def main():
@@ -26,11 +37,11 @@ def main():
         webin.textarea("curl 命令", name='command', rows=10, required=True),
         webin.textarea("响应数据", name='response', rows=10),
     ])
-    command = data['command']
-    response = data['response']
-    group = data['group']
-    name = data['name']
-    version = data['version']
+    command = get_value(data, 'command')
+    response = get_value(data, 'response')
+    group = get_value(data, 'group')
+    name = get_value(data, 'name')
+    version = get_value(data, 'version')
     parser = Parser(command, response)
     doc = parser.to_apidoc(group=group, name=name, version=version)
     webout.put_text(doc)
