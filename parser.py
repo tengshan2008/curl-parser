@@ -3,15 +3,22 @@ import json
 import warnings
 from http.cookies import SimpleCookie
 from shlex import split
+from typing import Tuple
 from urllib.parse import urlparse
 
 from w3lib.http import basic_auth_header
+
+API_QUERY_PARAM_EXAMPLE = "@apiParamExample (query) {json} Request-Example:"
+API_ROUTE_PARAM_EXAMPLE = "@apiParamExample (route) {json} Request-Example:"
+API_HEADER_EXAMPLE = "@apiHeaderExample {json} Request-Example"
+API_SUCCESS_EXAMPLE = "@apiSuccessExample {json} Success-Response:"
 
 
 class CURLParser(argparse.ArgumentParser):
     def error(self, messasge):
         error_msg = f'There was an error parsing the curl command: {messasge}'
         raise ValueError(error_msg)
+
 
 class BodyParser:
     def __init__(self, body) -> None:
@@ -22,7 +29,6 @@ class BodyParser:
         keys_name = '.'.join(keys)
         if keys_name not in self.parse_body:
             self.parse_body[keys_name] = value_type
-
 
     def parse(self, body, keys=None):
         if keys is None:
@@ -37,16 +43,6 @@ class BodyParser:
                 self.parse(i, keys)
         else:
             self.insert_data(keys, body)
-        # elif isinstance(body, str):
-        #     self.insert_data(keys, 'str')
-        # elif isinstance(body, int):
-        #     self.insert_data(keys, 'int')
-        # elif isinstance(body, float):
-        #     self.insert_data(keys, 'float')
-        # elif isinstance(body, bool):
-        #     self.insert_data(keys, 'bool')
-        # else:
-        #     self.insert_data(keys, 'unkown')
 
 
 class Parser:
@@ -112,14 +108,18 @@ class Parser:
             result['body'] = parsed_args.data
         return result
 
-    def to_api(self):
+    def to_api(self, title: str = "title") -> str:
         # @api {method} path title
-        return f"@api {{{self.parsed['method']}}} {self.parsed['path']} title"
+        method = self.parsed['method']
+        path = self.parsed['path']
+        return f"@api {{{method}}} {path} title"
 
-    def to_api_body(self):
+    def to_api_body(self) -> str:
         # @apiBody [{type}] [field=defaultValue] [description]
         lines = []
-        body = json.loads(self.parsed['body'].strip())
+
+        body_text = self.parsed['body'].strip()
+        body = json.loads(body_text)
         bp = BodyParser(body)
         for k, v in bp.parse_body.items():
             if isinstance(v, dict):
@@ -135,88 +135,119 @@ class Parser:
             else:
                 ptype = 'type'
             lines.append(f'@apiBody {{{ptype}}} {k} description')
+
         return '\n'.join(lines)
 
-    def to_api_example(self):
-        return f'@apiExample {{curl}} Example usage:{self.command}'
+    def to_api_example(self) -> str:
+        # @apiExample [{type}] title
+        #     example
+        return f'@apiExample {{curl}} Example usage:\n{self.command}'
 
-    def to_api_group(self, group: str = None):
-        return f'@apiGroup {group}' if group else '@apiGroup group'
+    def to_api_group(self, group: str) -> str:
+        # @apiGroup name
+        return f'@apiGroup {group}'
 
-    def to_api_name(self, name: str = None):
-        return f'@apiName {name}' if name else '@apiName apiName'
+    def to_api_name(self, name) -> str:
+        # @apiName name
+        return f'@apiName {name}'
 
-    def to_api_version(self, version: str = None):
-        return f'@apiVersion {version}' if version else '@apiVersion 0.0.1'
+    def to_api_version(self, version) -> str:
+        # @apiVersion version
+        return f'@apiVersion {version}'
 
-    def to_api_header(self):
+    def to_api_header(self) -> Tuple[str, str]:
         # @apiHeader [(group)] [{type}] [field=defaultValue] [description]
         lines = []
         example = {}
-        for header in self.parsed['headers']:
-            if isinstance(header[1], str):
-                ptype = 'String'
-            elif isinstance(header[1], int):
-                ptype = 'Number'
-            else:
-                ptype = 'type'
-            lines.append(f'@apiHeader {{{ptype}}} {header[0]} description')
-            example[header[0]] = header[1]
-        example_text = json.dumps(example, indent='    ')
 
-        header_example = f'@apiHeaderExample {{json}} Request-Example\n{example_text}'
-        return '\n'.join(lines), header_example
+        headers = self.parsed['headers']
+        for header in headers:
+            header_name, header_value = header
+            example[header_name] = header_value
+            lines.append(f'@apiHeader {{String}} {header_name} description')
 
-    def to_api_query_param(self):
-        # @apiParam {String} paramName description
+        header_lines = '\n'.join(lines)
+        example_text = json.dumps(example, indent='    ', ensure_ascii=False)
+        header_example = f'{API_HEADER_EXAMPLE}\n{example_text}'
+
+        return header_lines, header_example
+
+    def to_api_query_param(self) -> Tuple[str, str]:
+        # @apiParam (query) {String} paramName description
         lines = []
         example = {}
 
-        for query in self.parsed['query'].split('&'):
+        query_string = self.parsed['query']
+        for query in query_string.split('&'):
             if len(query) == 0:
                 continue
             key, value = query.split('=')
-            if isinstance(value, str):
-                ptype = 'String'
-            elif isinstance(value, int):
-                ptype = 'Number'
-            else:
-                ptype = 'type'
-            lines.append(f'@apiParam (query) {{{ptype}}} {key} description')
             example[key] = value
+            lines.append(f'@apiParam (query) {{String}} {key} description')
 
         if len(lines) == 0 or len(example) == 0:
-            return "", ""
+            return None, None
 
-        example_text = json.dumps(example, indent='    ')
-        param_example = f'@apiParamExample (query) {{json}} Request-Example:\n{example_text}'
-        return "\n".join(lines), param_example
+        param_lines = '\n'.join(lines)
+        example_text = json.dumps(example, indent='    ', ensure_ascii=False)
+        param_example = f'{API_QUERY_PARAM_EXAMPLE}\n{example_text}'
 
-    def to_api_route_param(self):
+        return param_lines, param_example
+
+    def to_api_route_param(self) -> Tuple[str, str]:
+        # @apiParam (route) {String} paramName description
         lines = []
         example = {}
-        for pair in self.parsed['path'].split('/'):
-            if pair.startswith(':'):
-                lines.append(
-                    f'@apiParam (route) {{String}} {pair[1:]} description')
-                example[pair[1:]] = ""
-        example_text = json.dumps(example, indent='    ')
-        param_example = f'@apiParamExample (route) {{json}} Request-Example:\n{example_text}'
-        return "\n".join(lines), param_example
 
-    def to_api_success(self, response: str = None):
-        # response = response.strip()
-        # body = json.loads(response)
-        # bp = BodyParser(json.loads(response))
-        # for k, v in json.loads(response).items():
-        #     pass
-        success_example = f'@apiSuccessExample {{json}} Success-Response:\n{response}'
-        return "", success_example
+        path_string = self.parsed['path']
+        for param in path_string.split('/'):
+            if param.startswith(':'):
+                param_name = param[1:]
+                example[param_name] = param_name
+                lines.append(
+                    f'@apiParam (route) {{String}} {param_name} description')
+
+        param_lines = '\n'.join(lines)
+        example_text = json.dumps(example, indent='    ', ensure_ascii=False)
+        param_example = f'{API_ROUTE_PARAM_EXAMPLE}\n{example_text}'
+
+        return param_lines, param_example
+
+    def to_api_success(self, body: str = None) -> Tuple[str, str]:
+        # @apiSuccess [(group)] [{type}] field [description]
+        if body is None:
+            return None, None
+
+        lines = []
+
+        body = body.strip()
+        success = json.loads(body)
+        bp = BodyParser(success)
+        for k, v in bp.parse_body.items():
+            if isinstance(v, dict):
+                ptype = 'Object'
+            elif isinstance(v, list):
+                ptype = 'List'
+            elif isinstance(v, str):
+                ptype = 'String'
+            elif isinstance(v, int):
+                ptype = 'Number'
+            elif isinstance(v, bool):
+                ptype = 'Bool'
+            else:
+                ptype = 'type'
+            lines.append(f'@apiSuccess {{{ptype}}} {k} description')
+
+        success_lines = '\n'.join(lines)
+        success_text = json.dumps(success, indent='    ', ensure_ascii=False)
+        success_example = f'{API_SUCCESS_EXAMPLE}\n{success_text}'
+
+        return success_lines, success_example
 
     def to_apidoc(
         self,
-        group: str = None,
-        name: str = None,
+        group: str = "group",
+        name: str = "name",
         version: str = '0.0.1',
         response: str = None,
     ):

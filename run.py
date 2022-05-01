@@ -34,6 +34,7 @@ response = """
 """
 
 parser = Parser(curl_command)
-# print(parser.parsed)
-doc = parser.to_apidoc(response=response)
-print(doc)
+# doc = parser.to_apidoc(response=response)
+doc = parser.to_apidoc()
+with open('sample.txt', 'w', encoding='utf-8') as f:
+    f.write(doc)
