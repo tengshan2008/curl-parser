@@ -3,24 +3,26 @@ from parser import Parser
 import pywebio.input as webin
 import pywebio.output as webout
 import tornado.ioloop
-import tornado.web
 import tornado.options
+import tornado.web
 from pywebio.platform.tornado import webio_handler
 
+
 class MainHandler(tornado.web.RequestHandler):
-      def get(self):
-            self.write("Hello, world")
+    def get(self):
+        self.write("Hello, world")
+
 
 def main():
     data = webin.input_group("接口信息", [
         webin.input("接口名称（中文）", name='title', type=webin.TEXT,
-              placeholder='title', required=True),
+                    placeholder='title', required=True),
         webin.input("接口名称（英文）", name='name', type=webin.TEXT,
-              placeholder='apiName', required=True),
+                    placeholder='apiName', required=True),
         webin.input("组名称", name='group', type=webin.TEXT,
-              placeholder='groupName', required=True),
+                    placeholder='groupName', required=True),
         webin.input("版本号", name='version', type=webin.TEXT,
-              placeholder='0.0.1', required=False),
+                    placeholder='0.0.1', required=False),
         webin.textarea("curl 命令", name='command', rows=10, required=True),
         webin.textarea("响应数据", name='response', rows=10),
     ])
@@ -32,12 +34,12 @@ def main():
 
 # start_server(main, port=8080, debug=True)
 application = tornado.web.Application([
-      (r"/info", MainHandler),
-      (r"/", webio_handler(main)),
+    (r"/info", MainHandler),
+    (r"/", webio_handler(main)),
 ])
 
 if __name__ == "__main__":
-      tornado.options.parse_command_line()
-      http_server = tornado.httpserver.HTTPServer(application)
-      http_server.listen(5050)
-      tornado.ioloop.IOLoop.current().start()
+    tornado.options.parse_command_line()
+    http_server = tornado.httpserver.HTTPServer(application)
+    http_server.listen(5050)
+    tornado.ioloop.IOLoop.current().start()
