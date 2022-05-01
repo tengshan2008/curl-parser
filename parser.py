@@ -46,8 +46,9 @@ class BodyParser:
 
 
 class Parser:
-    def __init__(self, command: str) -> None:
+    def __init__(self, command: str, response: str) -> None:
         self.command = command.replace('\\\n', '').strip()
+        self.response = response.replace('\\\n', '').strip()
         self.curl_parser = self.init_parser()
         self.parsed = self.curl_to_request_kwargs()
 
@@ -183,7 +184,7 @@ class Parser:
         if 'query' not in self.parsed:
             return None, None
         query_string = self.parsed['query']
-        
+
         lines = []
         example = {}
 
@@ -208,7 +209,7 @@ class Parser:
         if 'path' not in self.parsed:
             return None, None
         path_string = self.parsed['path']
-        
+
         lines = []
         example = {}
 
@@ -219,21 +220,23 @@ class Parser:
                 lines.append(
                     f'@apiParam (route) {{String}} {param_name} description')
 
+        if len(lines) == 0 or len(example) == 0:
+            return None, None
+
         param_lines = '\n'.join(lines)
         example_text = json.dumps(example, indent='    ', ensure_ascii=False)
         param_example = f'{API_ROUTE_PARAM_EXAMPLE}\n{example_text}'
 
         return param_lines, param_example
 
-    def to_api_success(self, body: str = None) -> Tuple[str, str]:
+    def to_api_success(self) -> Tuple[str, str]:
         # @apiSuccess [(group)] [{type}] field [description]
-        if body is None:
+        if self.response is None:
             return None, None
 
         lines = []
 
-        body = body.strip()
-        success = json.loads(body)
+        success = json.loads(self.response)
         bp = BodyParser(success)
         for k, v in bp.parse_body.items():
             if isinstance(v, dict):
@@ -261,12 +264,11 @@ class Parser:
         group: str = "group",
         name: str = "name",
         version: str = '0.0.1',
-        response: str = None,
     ):
         header, header_example = self.to_api_header()
         query_param, query_param_example = self.to_api_query_param()
         route_param, route_param_example = self.to_api_route_param()
-        success, success_example = self.to_api_success(response)
+        success, success_example = self.to_api_success()
         elements = [
             self.to_api(),
             self.to_api_name(name),

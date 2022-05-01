@@ -26,9 +26,13 @@ def main():
         webin.textarea("curl 命令", name='command', rows=10, required=True),
         webin.textarea("响应数据", name='response', rows=10),
     ])
-    parser = Parser(data['command'])
-    doc = parser.to_apidoc(
-        group=data['group'], name=data['name'], version=data['version'])
+    command = data['command']
+    response = data['response']
+    group = data['group']
+    name = data['name']
+    version = data['version']
+    parser = Parser(command, response)
+    doc = parser.to_apidoc(group=group, name=name, version=version)
     webout.put_text(doc)
 
 
