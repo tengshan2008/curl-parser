@@ -112,13 +112,16 @@ class Parser:
         # @api {method} path title
         method = self.parsed['method']
         path = self.parsed['path']
-        return f"@api {{{method}}} {path} title"
+        return f"@api {{{method}}} {path} {title}"
 
     def to_api_body(self) -> str:
         # @apiBody [{type}] [field=defaultValue] [description]
+        if 'body' not in self.parsed:
+            return None
+        body_text = self.parsed['body'].strip()
+
         lines = []
 
-        body_text = self.parsed['body'].strip()
         body = json.loads(body_text)
         bp = BodyParser(body)
         for k, v in bp.parse_body.items():
@@ -157,10 +160,13 @@ class Parser:
 
     def to_api_header(self) -> Tuple[str, str]:
         # @apiHeader [(group)] [{type}] [field=defaultValue] [description]
+        if 'headers' not in self.parsed:
+            return None
+        headers = self.parsed['headers']
+
         lines = []
         example = {}
 
-        headers = self.parsed['headers']
         for header in headers:
             header_name, header_value = header
             example[header_name] = header_value
@@ -174,10 +180,13 @@ class Parser:
 
     def to_api_query_param(self) -> Tuple[str, str]:
         # @apiParam (query) {String} paramName description
+        if 'query' not in self.parsed:
+            return None, None
+        query_string = self.parsed['query']
+        
         lines = []
         example = {}
 
-        query_string = self.parsed['query']
         for query in query_string.split('&'):
             if len(query) == 0:
                 continue
@@ -196,10 +205,13 @@ class Parser:
 
     def to_api_route_param(self) -> Tuple[str, str]:
         # @apiParam (route) {String} paramName description
+        if 'path' not in self.parsed:
+            return None, None
+        path_string = self.parsed['path']
+        
         lines = []
         example = {}
 
-        path_string = self.parsed['path']
         for param in path_string.split('/'):
             if param.startswith(':'):
                 param_name = param[1:]
