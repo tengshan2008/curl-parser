@@ -61,6 +61,15 @@ class Parser:
             '-X', '--request', dest='method', default='get')
         curl_parser.add_argument('-d', '--data-raw', dest='data')
         curl_parser.add_argument('-u', '--user', dest='auth')
+        safe_to_ignore_arguments = [
+            ['--compressed'],
+            ['-s', '--silent'],
+            ['-v', '--verbose'],
+            ['-#', '--progress-bat']
+        ]
+        for argument in safe_to_ignore_arguments:
+            curl_parser.add_argument(*argument, action='store_true')
+
         return curl_parser
 
     def curl_to_request_kwargs(self, ignore_unkown_options=True):
@@ -84,8 +93,7 @@ class Parser:
         if not parsed_url.scheme:
             url = 'http://' + url
 
-        result = {'method': parsed_args.method.upper(), 'url': url,
-                  'path': parsed_url.path, 'query': parsed_url.query}
+        result = {'method': parsed_args.method.upper(), 'url': url}
         headers = []
         cookies = {}
         for header in parsed_args.headers or ():
@@ -108,6 +116,10 @@ class Parser:
             result['cookies'] = cookies
         if parsed_args.data:
             result['body'] = parsed_args.data
+        if parsed_url.path:
+            result['path'] = parsed_url.path
+        if parsed_url.query:
+            result['query'] = parsed_url.query
         return result
 
     def to_api(self, title: str = "title") -> str:
